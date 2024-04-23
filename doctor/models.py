@@ -3,6 +3,10 @@ from django.db import models
 
 
 # Create your models here.
+def is_doctor(user):
+    return DoctorData.objects.filter(user=user).exists()
+
+
 class Speciality(models.Model):
     speciality = models.CharField(max_length=100)
     icon = models.ImageField(upload_to="icons", null=True, blank=True)
@@ -30,3 +34,11 @@ class DoctorData(models.Model):
 
     def __str__(self):
         return self.user.username
+    
+class OpenDate(models.Model):
+    user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
+    date = models.DateTimeField()
+    scheduled = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return str(self.date)

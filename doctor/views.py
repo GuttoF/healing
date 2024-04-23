@@ -1,20 +1,20 @@
 # Create your views here.
+from datetime import datetime
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from .models import DoctorData, Speciality
+from .models import DoctorData, OpenDate, Speciality, is_doctor
 
 
-@login_required
 def doctor_signup(request):
-    doctor_data_existance = DoctorData.objects.filter(user=request.user)
-    if doctor_data_existance.exists():
+    if is_doctor(request.user):
         messages.add_message(
             request, messages.ERROR, "Usuário já cadastrado como médico."
         )
-        return redirect("/medicos/abrir_horario")
-    
+        return redirect("/medicos/schedule")
+
     if request.method == "GET":
         specialities = Speciality.objects.all()
         return render(request, "doctor_signup.html", {"specialities": specialities})
@@ -55,4 +55,38 @@ def doctor_signup(request):
             request, messages.SUCCESS, "Cadastro médico realizado com sucesso."
         )
 
-        return redirect("/medicos/abrir_horario")
+        return redirect("/medicos/schedule")
+
+
+@login_required
+def schedule(request):
+    if not is_doctor(request.user):
+        messages.add_message(
+            request, messages.ERROR, "Usuário não cadastrado como médico."
+        )
+        return redirect("/users/logout")
+
+    if request.method == "GET":
+        doctor_data = DoctorData.objects.get(user=request.user)
+        open_date = OpenDate.objects.filter(user=request.user)
+        return render(
+            request,
+            "schedule.html",
+            {"doctor_data": doctor_data, "open_date": open_date},
+        )
+    elif request.method == "POST":
+        date = request.POST.get("date")
+        formatted_data = datetime.strptime(date, "%Y-%m-%dT%H:%M")
+
+        if formatted_data <= datetime.now():
+            messages.add_message(
+                request, messages.ERROR, "A data deve ser maior ou igual a data atual."
+            )
+            return redirect("/medicos/schedule")
+
+        open_date = OpenDate(user=request.user, date=date)
+        open_date.save()
+
+        messages.add_message(request, messages.SUCCESS, "Data aberta com sucesso.")
+
+        return redirect("/medicos/schedule")
